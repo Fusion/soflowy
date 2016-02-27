@@ -1,0 +1,23 @@
+body { color:#222; background:#fafafa; font:13px/1.4 'segoe ui', sans-serif; }
+h1, h2 { margin:0 0 .75em; font:700 2.2em/1 'myriad pro', sans-serif; } h2 { color:#999; margin: 1em 0 .25em; font-size:1.6em; }
+a { color:#06c; transition:.2s linear; -webkit-transition:.2s linear; } a:hover { color:#39f; }
+p { margin:1em 0; } footer { color:#999; margin:3em 0 0; text-align:center; } footer a { color:#777; }
+kbd { color:#096; }
+#wrap { width:500px; margin:1em auto; padding:1.5em; background:#fff; box-shadow:0 1em 2em rgba(0,0,0,.2); }
+
+.btns { margin:.5em 1em; }
+
+#outline, #outline ol { margin:0 0 0 2em; list-style-type:none; }
+#outline { margin:.5em 0; }
+#outline li { padding:0; margin:.5em 0 0 0; }
+#outline li div  { margin:0; padding:.25em; position:relative; border:1px solid #aaa; }
+#outline li div .drg { cursor:move; padding:1px; margin:0 .5em 0 0; border-left:2px dotted #bbb; border-right:2px dotted #bbb; }
+#outline li div input.txt { border:0; outline:0; width:90%; background:transparent; }
+#outline li div input.chk { top:1px; margin:0 .2em; position:relative; }
+#outline li div input.chk:checked + input.txt { color:#999; text-decoration:line-through; }
+#outline li div a.del { color:#ccc; top:-5px; right:5px; cursor:pointer; font-size:20px; position:absolute; text-decoration:none; }
+#outline li div a.del:hover { color:#c33; }
+#outline li.rem > div { border:1px solid #000; }
+.placeholder { background:#eee; }
+.nesttoodeep { background:#ffdedd; }
+

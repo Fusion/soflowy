@@ -1,0 +1,9 @@
+name: fy
+version: 0.0.1
+
+dependencies:
+  kemal:
+    github: sdogruyol/kemal
+    branch: master
+  kemal-mysql:
+    github: sdogruyol/kemal-mysql
