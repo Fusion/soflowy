@@ -7,3 +7,5 @@ dependencies:
     branch: master
   kemal-mysql:
     github: sdogruyol/kemal-mysql
+  session:
+    github: porras/session

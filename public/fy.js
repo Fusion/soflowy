@@ -10,6 +10,7 @@ var setting = {
 	view: {expandSpeed:"",
 		addHoverDom: addHoverDom,
 		removeHoverDom: removeHoverDom,
+                addDiyDom: addDiyDom,
 		selectedMulti: false
 	},
 	edit: {
@@ -31,6 +32,28 @@ var setting = {
 	}
 };
 
+var treeHistory = [];
+
+function addLayer() {
+  var layer = '<div class="treelayer"><div class="zTreeContainerBackground left"><div id="backintree"><span class="icon icon-up-circled"></span></div><ul id="'+getTreeName()+'" class="ztree"></ul></div></div>';
+  $('#content_wrap_container').append(layer);
+}
+
+function removeLayer() {
+  $("#" + getTreeName()).parent().parent().remove();
+}
+
+function treeup() {
+  if(treeHistory.length > 0) {
+    removeLayer();
+    setting.async.otherParam.queryParent = treeHistory.pop();
+  }
+}
+
+function getTreeName() {
+  return "layertree_" + treeHistory.length;
+}
+
 function filter(treeId, parentNode, childNodes) {
 	if (!childNodes) return null;
 	for (var i=0, l=childNodes.length; i<l; i++) {
@@ -40,7 +63,7 @@ function filter(treeId, parentNode, childNodes) {
 }
 
 function beforeRemove(treeId, treeNode) {
-	var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+	var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	zTree.selectNode(treeNode);
 	return confirm("Confirm delete node '" + treeNode.name + "' it?");
 }
@@ -66,8 +89,15 @@ function onRename(event, treeId, treeNode, isCancel) {
     $.ajax({
       method: "POST",
       url: "/rename.json",
-      data: { id: treeNode.id, content: treeNode.name }
+      data: { id: treeNode.id, content: treeNode.name },
+
+      success: function( data ) {
+        addDiyDom(treeId, treeNode);
+      }
     });
+  }
+  else {
+    addDiyDom(treeId, treeNode);
   }
 }
 
@@ -80,7 +110,7 @@ function addRemoteNode(treeNode) {
       data: { pid: treeNode.id, content: name },
 
       success: function( data ) {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
         zTree.addNodes(treeNode, {id:data.id, pId:treeNode.id, name:name});
         newCount++;
         var node = zTree.getNodeByParam("id", data.id, treeNode);
@@ -91,10 +121,11 @@ function addRemoteNode(treeNode) {
 }
 
 function onClick(event, treeId, treeNode, clickFlag) {
-	//console.log("[ "+getTime()+" onClick ]&nbsp;&nbsp;clickFlag = " + clickFlag + " (" + (clickFlag===1 ? "single selected": (clickFlag===0 ? "<b>cancel selected</b>" : "<b>multi selected</b>")) + ")");
         treeHistory.push(setting.async.otherParam.queryParent);
+	addLayer();
+
 	setting.async.otherParam.queryParent = treeNode.id;
-	$.fn.zTree.init($("#treeDemo"), setting);
+	$.fn.zTree.init($("#"+getTreeName()), setting);
 }
 
 var newCount = 1;
@@ -107,20 +138,30 @@ function addHoverDom(treeId, treeNode) {
 	var btn = $("#addBtn_"+treeNode.tId);
 	if (btn) btn.bind("click", function(){
                 addRemoteNode(treeNode);
-		//var zTree = $.fn.zTree.getZTreeObj("treeDemo");
-		//zTree.addNodes(treeNode, {id:(1000000 + newCount), pId:treeNode.id, name:"new node" + (newCount++)});
 		return false;
 	});
 };
+
 function removeHoverDom(treeId, treeNode) {
 	$("#addBtn_"+treeNode.tId).unbind().remove();
 };
 
+function addDiyDom(treeId, treeNode) {
+	if(typeof treeId == "undefined") return;
+	var sObj = $("#" + treeNode.tId + "_span");
+	sObj.html(renderContent(sObj.html()));
+}
+
+/* */
+
+function renderContent(str) {
+	return str.replace(/(\+[a-zA-z-_0-9]*)/g, '<span class="tag" style="background-color:#82caff">$1</span>');
+}
 
 /* */
 
 function onKeyEnter() {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	var snodes = zTree.getSelectedNodes();
 	if(snodes.length > 0) {
 		// A node is selected:
@@ -141,6 +182,10 @@ function onKeyEnter() {
 	}
 }
 
+function onKeyEsc() {
+  treeup();
+}
+
 function findNextFirstParent(node) {
 	if(node.getNextNode()) {
 		return node.getNextNode();
@@ -154,7 +199,7 @@ function findNextFirstParent(node) {
 }
 
 function onKeyDown() {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	var nodes = zTree.getSelectedNodes();
 	if(nodes.length > 0) {
 		if(nodes[0].isParent && nodes[0].open == true) {
@@ -192,7 +237,7 @@ function findPreviousLastChild(node) {
 }
 
 function onKeyUp() {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	var nodes = zTree.getSelectedNodes();
 	if(nodes.length > 0) {
 		if(nodes[0].getPreNode()) {
@@ -205,7 +250,7 @@ function onKeyUp() {
 }
 
 function onKeyRight() {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	var nodes = zTree.getSelectedNodes();
 	if(nodes.length > 0) {
 		if(nodes[0].isParent && nodes[0].open == false) {
@@ -215,7 +260,7 @@ function onKeyRight() {
 }
 
 function onKeyLeft() {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	var nodes = zTree.getSelectedNodes();
 	if(nodes.length > 0) {
 		if(nodes[0].isParent && nodes[0].open == true) {
@@ -225,7 +270,7 @@ function onKeyLeft() {
 }
 
 function onKeyShiftEnter() {
-        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
 	var nodes = zTree.getSelectedNodes();
 	if(nodes.length > 0) {
 		if(nodes[0].getParentNode()) {
@@ -234,9 +279,10 @@ function onKeyShiftEnter() {
 	}
 }
 
-var treeHistory = [];
-
 $(document).ready(function(){
+
+        addLayer();
+
 	/*
 	 * Key combos: by default, no node is selected... Enter will be used to either
 	 * select the top node or create a new node
@@ -244,6 +290,8 @@ $(document).ready(function(){
 	var bindings = new Keys.Bindings();
 	bindings.add('onKeyEnter', new Keys.Combo(Keys.Key.Enter));
         bindings.registerHandler(onKeyEnter);
+	bindings.add('onKeyEsc', new Keys.Combo(Keys.Key.Esc));
+        bindings.registerHandler(onKeyEsc);
 	bindings.add('onKeyDown', new Keys.Combo(Keys.Key.Down));
         bindings.registerHandler(onKeyDown);
 	bindings.add('onKeyUp', new Keys.Combo(Keys.Key.Up));
@@ -255,14 +303,11 @@ $(document).ready(function(){
 	bindings.add('onKeyShiftEnter', new Keys.Combo(Keys.Key.Enter, Keys.Key.SHIFT));
         bindings.registerHandler(onKeyShiftEnter);
 
-	$.fn.zTree.init($("#treeDemo"), setting);
+	$.fn.zTree.init($("#"+getTreeName()), setting);
         /*
          * If back arrow clicked, then pop tree history
          */
 	$("#backintree").click(function() {
-          if(treeHistory.length > 0) {
-	    setting.async.otherParam.queryParent = treeHistory.pop();
-	    $.fn.zTree.init($("#treeDemo"), setting);
-          }
+          treeup();
 	});
 });

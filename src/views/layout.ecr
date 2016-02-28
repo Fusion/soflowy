@@ -1,0 +1,57 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="css/fy.css" type="text/css">
+<link rel="stylesheet" href="css/awesome.css" type="text/css">
+<link rel="stylesheet" href="photon/dist/css/photon.css" type="text/css">
+<style type="text/css">
+.ztree li span.button.add {margin-left:2px; margin-right: -1px; background-position:-144px 0; vertical-align:top; *vertical-align:middle}
+</style>
+
+<script type="text/javascript" src="ztree/js/jquery-1.4.4.min.js"></script>
+<script type="text/javascript" src="ztree/js/jquery.ztree.core.js"></script>
+<script type="text/javascript" src="ztree/js/jquery.ztree.excheck.js"></script>
+<script type="text/javascript" src="ztree/js/jquery.ztree.exedit.js"></script>
+<script type="text/javascript" src="keysjs/src/keys.js"></script>
+
+<script src="/fy.js"></script>
+</head>
+<body>
+
+<div class="window">
+  <header class="toolbar toolbar-header">
+    <h1 class="title">Flowy!</h1>
+  </header>
+
+  <div class="window-content">
+        <div class="pane-group">
+          <div class="pane pane-sm sidebar">
+            <nav class="nav-group">
+              <h5 class="nav-group-title">Hello, <%= username %></h5>
+              <a class="nav-group-item active">
+                <span class="icon icon-home"></span>
+                Outliner
+              </a>
+              <span class="nav-group-item">
+                <span class="icon icon-cog"></span>
+                Shortcuts
+              </span>
+              <span class="nav-group-item">
+                <span class="icon icon-logout"></span>
+                <%= log_action %>
+              </span>
+            </nav>
+          </div>
+          <div class="pane">
+<%= content %>
+          </div>
+        </div>
+  </div>
+
+<footer class="toolbar toolbar-footer">
+  <h1 class="title">Pre-alpha. Seriously, use this at your own risk.</h1>
+</footer>
+</div>
+</body>
+</html>
