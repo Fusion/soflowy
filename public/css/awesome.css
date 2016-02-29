@@ -47,14 +47,9 @@ website:    http://code.google.com/p/jquerytree/
   display: inline-block;
 }
 .ztree li a input.rename {
-  height: 14px;
-  width: 80px;
+  width: 1600px;
   padding: 0;
   margin: 0;
-  background-color: #ffffff;
-  font-size: 12px;
-  border: 1px #585956 solid;
-  *border: 0px;
 }
 .ztree li a:hover {
   text-decoration: underline;

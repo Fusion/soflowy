@@ -32,7 +32,7 @@ def reply_json(env, data, diag = 200)
 end
 
 # top level: parent == ""
-def get_level_entries_deferred_release(env, parent_id)
+def get_level_entries_deferred_release(env, parent_id, use_parent)
   r = conn.query(%(SELECT id FROM maps WHERE nid='#{parent_id}'))
   if r.not_nil!.size == 1
     s_parent = (r.not_nil![0][0] as String).sanitize
@@ -40,7 +40,11 @@ def get_level_entries_deferred_release(env, parent_id)
     s_parent = ""
   end
   release
-  conn.query(%(SELECT nid, content, sortorder, children FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE parent="#{s_parent}" ORDER BY sortorder))
+  if use_parent
+    conn.query(%(SELECT nid, content, sortorder, children FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE parent="#{s_parent}" ORDER BY sortorder))
+  else
+    conn.query(%(SELECT nid, content, sortorder, children FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE entries.id="#{s_parent}" ORDER BY sortorder))
+  end
 end
 
 def get_entry_id(env, nid)
@@ -266,10 +270,18 @@ post "/entries.json" do |env|
   before_this env
 
   # If we have an empty document so far
-  pid = env.params["queryParent"] != "0" ? env.params["queryParent"] : env.params.has_key?("id")  ? env.params["id"].not_nil!.to_s.to_i : 0
+  
+  ppid = env.params.has_key?("id")  ? env.params["id"].not_nil!.to_s.to_i : 0
+  if env.params["queryContext"] != "0" && ppid == 0
+    pid = env.params["queryContext"]
+    use_parent = false
+  else
+    pid = ppid
+    use_parent = true
+  end
   reply = [] of Hash(Symbol, String | Bool)
 
-  get_level_entries_deferred_release(env, pid).not_nil!.each do |entry|
+  get_level_entries_deferred_release(env, pid, use_parent).not_nil!.each do |entry|
     reply << {id: entry[0].to_s, name: entry[1] as String, isParent: entry[3] as Int32 > 0}
   end
   release

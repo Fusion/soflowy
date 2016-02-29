@@ -4,7 +4,7 @@ var setting = {
 		enable: true,
 		url:"/entries.json",
 		autoParam:["id", "name=n", "level=lv"],
-		otherParam:{"queryParent":0},
+		otherParam:{"queryContext":0},
 		dataFilter: filter
 	},
 	view: {expandSpeed:"",
@@ -46,7 +46,7 @@ function removeLayer() {
 function treeup() {
   if(treeHistory.length > 0) {
     removeLayer();
-    setting.async.otherParam.queryParent = treeHistory.pop();
+    setting.async.otherParam.queryContext = treeHistory.pop();
   }
 }
 
@@ -121,10 +121,10 @@ function addRemoteNode(treeNode) {
 }
 
 function onClick(event, treeId, treeNode, clickFlag) {
-        treeHistory.push(setting.async.otherParam.queryParent);
+        treeHistory.push(setting.async.otherParam.queryContext);
 	addLayer();
 
-	setting.async.otherParam.queryParent = treeNode.id;
+	setting.async.otherParam.queryContext = treeNode.id;
 	$.fn.zTree.init($("#"+getTreeName()), setting);
 }
 
