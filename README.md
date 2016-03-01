@@ -1,26 +1,24 @@
 # fy
 
-TODO: Write a description here
+A very simple, self-hosted outliner/task manager with context navigation.
 
 ## Installation
 
 
-TODO: Write installation instructions here
+Compile Crystal code; run.
 
 
 ## Usage
 
-
-
-TODO: Write usage instructions here
+See previous section.
 
 ## Development
 
-TODO: Write development instructions here
+Alpha quality.
 
 ## Contributing
 
-1. Fork it ( https://github.com/[your-github-name]/fy/fork )
+1. Fork it ( https://github.com/fusion/soflowy/fork )
 2. Create your feature branch (git checkout -b my-new-feature)
 3. Commit your changes (git commit -am 'Add some feature')
 4. Push to the branch (git push origin my-new-feature)
@@ -28,4 +26,4 @@ TODO: Write development instructions here
 
 ## Contributors
 
-- [[your-github-name]](https://github.com/[your-github-name]) [your-name-here] - creator, maintainer
+- [[fusion]](https://github.com/fusion) Chris F. Ravenscroft - creator, maintainer
