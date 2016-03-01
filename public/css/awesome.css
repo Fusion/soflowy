@@ -273,6 +273,7 @@ website:    http://code.google.com/p/jquerytree/
 .ztree li span.button.noline_docu {
   background: none;
 }
+/*
 .ztree li span.button.ico_open::before {
   content: "\f0b2";
   font-family: FontAwesome;
@@ -287,6 +288,7 @@ website:    http://code.google.com/p/jquerytree/
   padding-left: 2px;
   display: inline-block;
 }
+*/
 .ztree li span.button.ico_docu::before {
   content: "\f022";
   font-family: FontAwesome;
@@ -344,6 +346,12 @@ website:    http://code.google.com/p/jquerytree/
   background: url(/img/loading.gif) no-repeat scroll 0 0 transparent;
   vertical-align: top;
   *vertical-align: middle;
+}
+.digBtn::before {
+  content: "\f192";
+  font-family: FontAwesome;
+  padding-left: 2px;
+  display: inline-block;
 }
 ul.tmpTargetzTree {
   background-color: #FFE6B0;

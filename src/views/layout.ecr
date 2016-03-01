@@ -25,28 +25,28 @@
   </header>
 
   <div class="window-content">
-        <div class="pane-group">
-          <div class="pane pane-sm sidebar">
-            <nav class="nav-group">
-              <h5 class="nav-group-title">Hello, <%= username %></h5>
-              <a class="nav-group-item active">
-                <span class="icon icon-home"></span>
-                Outliner
-              </a>
-              <span class="nav-group-item">
-                <span class="icon icon-cog"></span>
-                Shortcuts
-              </span>
-              <span class="nav-group-item">
-                <span class="icon icon-logout"></span>
-                <%= log_action %>
-              </span>
-            </nav>
-          </div>
-          <div class="pane">
-<%= content %>
-          </div>
-        </div>
+    <div class="pane-group">
+      <div class="pane pane-sm sidebar">
+        <nav class="nav-group">
+          <h5 class="nav-group-title">Hello, <%= username %></h5>
+          <a class="nav-group-item active">
+            <span class="icon icon-home"></span>
+            Outliner
+          </a>
+          <span class="nav-group-item">
+            <span class="icon icon-cog"></span>
+            Shortcuts
+          </span>
+          <span class="nav-group-item">
+            <span class="icon icon-logout"></span>
+            <%= log_action %>
+          </span>
+        </nav>
+      </div>
+      <div class="pane">
+        <%= content %>
+      </div>
+    </div>
   </div>
 
 <footer class="toolbar toolbar-footer">
