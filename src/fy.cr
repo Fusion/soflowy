@@ -41,9 +41,9 @@ def get_level_entries_deferred_release(env, parent_id, use_parent)
   end
   release
   if use_parent
-    conn.query(%(SELECT nid, content, sortorder, children FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE parent="#{s_parent}" ORDER BY sortorder))
+    conn.query(%(SELECT nid, content, sortorder, children, task, checked FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE parent="#{s_parent}" ORDER BY sortorder))
   else
-    conn.query(%(SELECT nid, content, sortorder, children FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE entries.id="#{s_parent}" ORDER BY sortorder))
+    conn.query(%(SELECT nid, content, sortorder, children, task, checked FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE entries.id="#{s_parent}" ORDER BY sortorder))
   end
 end
 
@@ -82,7 +82,21 @@ def insert_entry(env, parent : Nil | String, content : String, sortorder : Int32
   uuid
 end
 
-def update_entry(env, id : String, content : String)
+def update_entry_checkedness(env, id : String, check : String)
+  s_id = id.sanitize
+  checkedness = check == "true" ? 1 : 0
+  conn.query(%(UPDATE entries SET checked=#{checkedness} WHERE id="#{s_id}"))
+  release
+end
+
+def update_entry_taskness(env, id : String, task : String)
+  s_id = id.sanitize
+  taskness = task == "true" ? 1 : 0
+  conn.query(%(UPDATE entries SET task=#{taskness} WHERE id="#{s_id}"))
+  release
+end
+
+def update_entry_content(env, id : String, content : String)
   s_id = id.sanitize
   conn.query(%(UPDATE entries SET content="#{content}" WHERE id="#{s_id}"))
   release
@@ -148,7 +162,7 @@ def populate_test_data(env)
   release
   conn.query(%(DROP TABLE IF EXISTS entries))
   release
-  conn.query(%(CREATE TABLE entries(id VARCHAR(48) NOT NULL, parent VARCHAR(48) NOT NULL, content TEXT, sortorder INT, children INT DEFAULT 0, PRIMARY KEY(id))))
+  conn.query(%(CREATE TABLE entries(id VARCHAR(48) NOT NULL, parent VARCHAR(48) NOT NULL, content TEXT, sortorder INT, children INT DEFAULT 0, task TINYINT(1) DEFAULT 0, checked TINYINT(1) DEFAULT 0, PRIMARY KEY(id))))
   release
   conn.query(%(CREATE TABLE maps(nid INT NOT NULL AUTO_INCREMENT, id VARCHAR(48), primary KEY(nid))))
   release
@@ -239,11 +253,25 @@ get "/logout" do |env|
   env.redirect "/login"
 end
 
+get "/checktask.json" do |env|
+  before_this env
+
+  id = get_entry_id(env, env.params["id"] as String)
+  update_entry_checkedness(env, id as String, env.params["checked"] as String)
+end
+
+get "/maketask.json" do |env|
+  before_this env
+
+  id = get_entry_id(env, env.params["id"] as String)
+  update_entry_taskness(env, id as String, env.params["task"] as String)
+end
+
 get "/rename.json" do |env|
   before_this env
 
   id = get_entry_id(env, env.params["id"] as String)
-  update_entry(env, id as String, env.params["content"] as String)
+  update_entry_content(env, id as String, env.params["content"] as String)
 end
 
 get "/remove.json" do |env|
@@ -282,7 +310,7 @@ post "/entries.json" do |env|
   reply = [] of Hash(Symbol, String | Bool)
 
   get_level_entries_deferred_release(env, pid, use_parent).not_nil!.each do |entry|
-    reply << {id: entry[0].to_s, name: entry[1] as String, isParent: entry[3] as Int32 > 0}
+    reply << {id: entry[0].to_s, name: entry[1] as String, isParent: entry[3] as Int32 > 0, task:(entry[4] == true ? true : false), checked:(entry[5] == true ? true : false)}
   end
   release
 

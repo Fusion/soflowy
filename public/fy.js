@@ -120,6 +120,29 @@ function addRemoteNode(treeNode) {
     });
 }
 
+function checkTask(treeNode, ischecked) {
+    $.ajax({
+      method: "POST",
+      url: "/checktask.json",
+      data: { id: treeNode.id, checked: ischecked ? "true" : "false" },
+    });
+}
+
+function makeTask(treeNode, istask) {
+    $.ajax({
+      method: "POST",
+      url: "/maketask.json",
+      data: { id: treeNode.id, task: istask ? "false" : "true" },
+
+      success: function( data ) {
+        treeNode.task = !istask;
+        var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+        var node = zTree.getNodeByParam("id", data.id, treeNode);
+        addDiyDom(zTree.setting.treeId, treeNode);
+      }
+    });
+}
+
 function onClick(event, treeId, treeNode, clickFlag) {
         treeHistory.push(setting.async.otherParam.queryContext);
 	addLayer();
@@ -133,16 +156,24 @@ function addHoverDom(treeId, treeNode) {
 	var sObj = $("#" + treeNode.tId + "_span");
 	if (treeNode.editNameFlag || $("#addBtn_"+treeNode.tId).length>0) return;
 	var addStr = "<span class='button add' id='addBtn_" + treeNode.tId
-		+ "' title='add child note' onfocus='this.blur();'></span>";
+		+ "' title='add child note' onfocus='this.blur();'></span>"
+	        + "<span class='button task' id='taskBtn_" + treeNode.tId
+		+ "' title='make task' onfocus='this.blur();'></span>"
 	sObj.after(addStr);
 	var btn = $("#addBtn_"+treeNode.tId);
 	if (btn) btn.bind("click", function(){
                 addRemoteNode(treeNode);
 		return false;
 	});
+	var btn2 = $("#taskBtn_"+treeNode.tId);
+	if (btn2) btn2.bind("click", function(){
+                makeTask(treeNode, treeNode.task);
+		return false;
+	});
 };
 
 function removeHoverDom(treeId, treeNode) {
+	$("#taskBtn_"+treeNode.tId).unbind().remove();
 	$("#addBtn_"+treeNode.tId).unbind().remove();
 };
 
@@ -150,6 +181,19 @@ function addDiyDom(treeId, treeNode) {
 	if(typeof treeId == "undefined") return;
 	var sObj = $("#" + treeNode.tId + "_span");
 	sObj.html(renderContent(sObj.html()));
+
+	if(treeNode.task) {
+		var editStr = "<input type='checkbox' class='checkboxBtn' id='checkbox_" +treeNode.id+ "'" + ( treeNode.checked ? "checked=checked" : "" ) + " onfocus='this.blur();'></input>";
+		sObj.before(editStr);
+		var btn = $("#checkbox_"+treeNode.id);
+		if (btn) btn.bind("change", function(e) {
+			checkTask(treeNode, e.currentTarget.checked);
+			return false;
+		});
+	}
+	else {
+		$("#checkbox_"+treeNode.id).unbind().remove();
+	}
 }
 
 /* */
