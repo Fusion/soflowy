@@ -69,7 +69,7 @@ function beforeRemove(treeId, treeNode) {
 
 function onRemove(event, treeId, treeNode) {
   $.ajax({
-    method: "POST",
+    type: "POST",
     url: "/remove.json",
     data: { id: treeNode.id }
   });
@@ -86,7 +86,7 @@ function beforeRename(treeId, treeNode, newName) {
 function onRename(event, treeId, treeNode, isCancel) {
   if(!isCancel) {
     $.ajax({
-      method: "POST",
+      type: "POST",
       url: "/rename.json",
       data: { id: treeNode.id, content: treeNode.name },
 
@@ -104,7 +104,7 @@ function addRemoteNode(treeNode) {
   name = "";
 
   $.ajax({
-    method: "POST",
+    type: "POST",
     url: "/add.json",
     data: { pid: treeNode.id, content: name },
 
@@ -121,7 +121,7 @@ function addRemoteNode(treeNode) {
 
 function checkTask(treeNode, ischecked) {
   $.ajax({
-    method: "POST",
+    type: "POST",
     url: "/checktask.json",
     data: { id: treeNode.id, checked: ischecked ? "true" : "false" },
   });
@@ -129,7 +129,7 @@ function checkTask(treeNode, ischecked) {
 
 function makeTask(treeNode, istask) {
   $.ajax({
-    method: "POST",
+    type: "POST",
     url: "/maketask.json",
     data: { id: treeNode.id, task: istask ? "false" : "true" },
 
@@ -162,7 +162,7 @@ function addHoverDom(treeId, treeNode) {
   sObj.after(addStr);
   var btn = $("#addBtn_"+treeNode.tId);
   if (btn) btn.bind("click", function(){
-                addRemoteNode(treeNode);
+    addRemoteNode(treeNode);
     return false;
   });
   var btn2 = $("#taskBtn_"+treeNode.tId);
@@ -351,6 +351,9 @@ function onKeyShiftEnter() {
   if(nodes.length > 0) {
     if(nodes[0].getParentNode()) {
       addRemoteNode(nodes[0].getParentNode());
+    }
+    else {
+      addRemoteNode(0);
     }
   }
 }

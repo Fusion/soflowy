@@ -48,14 +48,20 @@ def get_level_entries_deferred_release(env, parent_id, use_parent)
 end
 
 def get_entry_id(env, nid)
-  r = conn.query(%(SELECT id FROM maps WHERE nid='#{nid}')).not_nil![0][0]
+  s_nid = nid.sanitize
+  return "" if s_nid == "0"
+  r = conn.query(%(SELECT id FROM maps WHERE nid='#{s_nid}')).not_nil![0][0]
   release
   r
 end
 
 def get_entry_id_and_child_idx(env, nid : String)
   s_nid = nid.sanitize
-  r = conn.query(%(SELECT maps.id,MAX(sortorder) AS max_sort FROM maps LEFT JOIN entries ON maps.id=entries.parent WHERE nid='#{s_nid}')).not_nil![0]
+  if s_nid == "0"
+    r = conn.query(%(SELECT '',MAX(sortorder) AS max_sort FROM entries WHERE parent='')).not_nil![0]
+  else
+    r = conn.query(%(SELECT maps.id,MAX(sortorder) AS max_sort FROM maps LEFT JOIN entries ON maps.id=entries.parent WHERE nid='#{s_nid}')).not_nil![0]
+  end
   release
   r
 end
@@ -253,38 +259,39 @@ get "/logout" do |env|
   env.redirect "/login"
 end
 
-get "/checktask.json" do |env|
+post "/checktask.json" do |env|
   before_this env
 
   id = get_entry_id(env, env.params["id"] as String)
   update_entry_checkedness(env, id as String, env.params["checked"] as String)
 end
 
-get "/maketask.json" do |env|
+post "/maketask.json" do |env|
   before_this env
 
   id = get_entry_id(env, env.params["id"] as String)
   update_entry_taskness(env, id as String, env.params["task"] as String)
 end
 
-get "/rename.json" do |env|
+post "/rename.json" do |env|
   before_this env
 
   id = get_entry_id(env, env.params["id"] as String)
   update_entry_content(env, id as String, env.params["content"] as String)
 end
 
-get "/remove.json" do |env|
+post "/remove.json" do |env|
   before_this env
 
   id = get_entry_id(env, env.params["id"] as String)
   delete_entry_by_id(env, id as String)
 end
 
-get "/add.json" do |env|
+post "/add.json" do |env|
   before_this env
 
-  uuid, child_idx = get_entry_id_and_child_idx(env, env.params["pid"] as String)
+  pid = env.params.has_key?("pid") ? env.params["pid"] : "0"
+  uuid, child_idx = get_entry_id_and_child_idx(env, pid as String)
   child_idx = 0 if child_idx == nil
   # when adding a child, it is added at the bottom of its
   # parent's children list, so we need to retrieve that
