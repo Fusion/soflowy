@@ -34,11 +34,13 @@ var setting = {
 var treeHistory = [];
 
 function addLayer() {
+console.log("+layer");
   var layer = '<div class="treelayer"><div class="zTreeContainerBackground left"><div id="backintree"><span class="icon icon-up-circled"></span></div><ul id="'+getTreeName()+'" class="ztree"></ul></div></div>';
   $('#content_wrap_container').append(layer);
 }
 
 function removeLayer() {
+console.log("-layer");
   $("#" + getTreeName()).parent().parent().remove();
 }
 
@@ -182,29 +184,29 @@ function addDiyDom(treeId, treeNode) {
   var sObj = $("#" + treeNode.tId + "_span");
   sObj.html(renderContent(sObj.html()));
 
-  $("#dig_"+treeNode.id).unbind().remove();
+  if(sObj.parent().find("#dig_"+treeNode.id).length < 1) {
+    var digStr = "<span class='digBtn' id='dig_" +treeNode.id+ "' onfocus='this.blur();'> </span>";
+    sObj.before(digStr);
+    var digBtn = $("#dig_"+treeNode.id);
+    if (digBtn) digBtn.unbind("click").click(function(e) {
+      treeHistory.push(setting.async.otherParam.queryContext);
+      addLayer();
 
-  var digStr = "<span class='digBtn' id='dig_" +treeNode.id+ "' onfocus='this.blur();'> </span>";
-  sObj.before(digStr);
-  var digBtn = $("#dig_"+treeNode.id);
-  if (digBtn) digBtn.click(function(e) {
-    treeHistory.push(setting.async.otherParam.queryContext);
-    addLayer();
-
-    setting.async.otherParam.queryContext = treeNode.id;
-    $.fn.zTree.init($("#"+getTreeName()), setting);
-  });
-
-  $("#checkbox_"+treeNode.id).unbind().remove();
+      setting.async.otherParam.queryContext = treeNode.id;
+      $.fn.zTree.init($("#"+getTreeName()), setting);
+    });
+  }
 
   if(treeNode.task) {
-    var checkStr = "<input type='checkbox' class='checkboxBtn' id='checkbox_" +treeNode.id+ "'" + ( treeNode.checked ? "checked=checked" : "" ) + " onfocus='this.blur();'></input>";
-    sObj.before(checkStr);
-    var checkBtn = $("#checkbox_"+treeNode.id);
-    if (checkBtn) checkBtn.bind("change", function(e) {
-      checkTask(treeNode, e.currentTarget.checked);
-      return false;
-    });
+    if(sObj.parent().find("#checkbox_"+treeNode.id).length < 1) {
+      var checkStr = "<input type='checkbox' class='checkboxBtn' id='checkbox_" +treeNode.id+ "'" + ( treeNode.checked ? "checked=checked" : "" ) + " onfocus='this.blur();'></input>";
+      sObj.before(checkStr);
+      var checkBtn = $("#checkbox_"+treeNode.id);
+      if (checkBtn) checkBtn.unbind("click").bind("change", function(e) {
+        checkTask(treeNode, e.currentTarget.checked);
+        return false;
+      });
+    }
   }
   else {
     $("#checkbox_"+treeNode.id).unbind().remove();
@@ -215,6 +217,7 @@ function addDiyDom(treeId, treeNode) {
 /* */
 
 function renderContent(str) {
+  //return marked(str).replace(/(\+[a-zA-z-_0-9]*)/g, '<span class="tag" style="background-color:#82caff">$1</span>');
   return str.replace(/(\+[a-zA-z-_0-9]*)/g, '<span class="tag" style="background-color:#82caff">$1</span>');
 }
 
@@ -244,6 +247,14 @@ function onKeyEnter() {
 
 function onKeyEsc() {
   treeup();
+}
+
+function onKeyDel() {
+  var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+  var snodes = zTree.getSelectedNodes();
+  if(snodes.length > 0) {
+    zTree.removeNode(snodes[0], true);
+  }
 }
 
 function onKeySpace() {
@@ -368,23 +379,25 @@ $(document).ready(function(){
    */
   var bindings = new Keys.Bindings();
   bindings.add('onKeyEnter', new Keys.Combo(Keys.Key.Enter));
-        bindings.registerHandler(onKeyEnter);
+  bindings.registerHandler(onKeyEnter);
   bindings.add('onKeyEsc', new Keys.Combo(Keys.Key.Esc));
-        bindings.registerHandler(onKeyEsc);
+  bindings.registerHandler(onKeyEsc);
+  bindings.add('onKeyDel', new Keys.Combo(Keys.Key.Delete));
+  bindings.registerHandler(onKeyDel);
   bindings.add('onKeyDown', new Keys.Combo(Keys.Key.Down));
-        bindings.registerHandler(onKeyDown);
+  bindings.registerHandler(onKeyDown);
   bindings.add('onKeyUp', new Keys.Combo(Keys.Key.Up));
-        bindings.registerHandler(onKeyUp);
+  bindings.registerHandler(onKeyUp);
   bindings.add('onKeyRight', new Keys.Combo(Keys.Key.Right));
-        bindings.registerHandler(onKeyRight);
+  bindings.registerHandler(onKeyRight);
   bindings.add('onKeyLeft', new Keys.Combo(Keys.Key.Left));
-        bindings.registerHandler(onKeyLeft);
+  bindings.registerHandler(onKeyLeft);
   bindings.add('onKeyShiftEnter', new Keys.Combo(Keys.Key.Enter, Keys.Key.SHIFT));
-        bindings.registerHandler(onKeyShiftEnter);
+  bindings.registerHandler(onKeyShiftEnter);
   bindings.add('onKeySpace', new Keys.Combo(Keys.Key.Spacebar));
-        bindings.registerHandler(onKeySpace);
+  bindings.registerHandler(onKeySpace);
   bindings.add('onKeyShiftSpace', new Keys.Combo(Keys.Key.Spacebar, Keys.Key.SHIFT));
-        bindings.registerHandler(onKeyShiftSpace);
+  bindings.registerHandler(onKeyShiftSpace);
 
   $.fn.zTree.init($("#"+getTreeName()), setting);
         /*
