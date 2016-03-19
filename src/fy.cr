@@ -116,6 +116,37 @@ def delete_entry_by_id(env, id : String)
   release
 end
 
+def swap_entry_position(env, tid : String, id : String)
+  s_tid = tid.sanitize
+  s_id  = id.sanitize
+  positions = conn.query(%(SELECT sortorder FROM entries WHERE id IN ("#{s_id}", "#{s_tid}") ORDER BY sortorder)).not_nil!
+  release
+  conn.query(%(UPDATE entries SET sortorder=#{positions[1][0]} WHERE id="#{s_id}"))
+  release
+  conn.query(%(UPDATE entries SET sortorder=#{positions[0][0]} WHERE id="#{s_tid}"))
+  release
+end
+
+def move_after_position(env, tid : String, id : String)
+  s_tid = tid.sanitize
+  s_id  = id.sanitize
+  # We now need to proceed with two sets of updates:
+  # 1. insert node after parent; increment remaining siblings
+  # 2. parent's children after our original position: decrement siblings
+  parent_position, grandad = conn.query(%(SELECT sortorder, parent FROM entries WHERE id="#{s_tid}")).not_nil![0]
+  release
+  node_position  = conn.query(%(SELECT sortorder FROM entries WHERE id="#{s_id}")).not_nil![0][0]
+  release
+  conn.query(%(UPDATE entries SET sortorder=sortorder+1 WHERE parent="#{grandad}" AND sortorder > #{parent_position}))
+  release
+  conn.query(%(UPDATE entries SET sortorder=sortorder-1 WHERE parent="#{s_tid}" AND sortorder > #{node_position}))
+  release
+  conn.query(%(UPDATE entries SET sortorder=#{parent_position}+1, parent="#{grandad}" WHERE id="#{s_id}"))
+  release
+  puts "#{id} -> #{tid} -> #{grandad}"
+  puts "#{node_position} -> #{parent_position}"
+end
+
 def to_sha1_str(source : String, salt : String)
   shad = OpenSSL::SHA1.hash(salt + source)
   Base64.encode String.build do |str|
@@ -301,6 +332,33 @@ post "/add.json" do |env|
   reply_json(env, {add: "ok", id: nid.to_s})
 end
 
+post "/moveprev.json" do |env|
+  before_this env
+
+  tuid = get_entry_id(env, env.params["tid"] as String) as String
+  uuid = get_entry_id(env, env.params["id"] as String) as String
+  swap_entry_position(env, uuid, tuid)
+  reply_json(env, {moveprev: "ok"})
+end
+
+post "/movenext.json" do |env|
+  before_this env
+
+  tuid = get_entry_id(env, env.params["tid"] as String) as String
+  uuid = get_entry_id(env, env.params["id"] as String) as String
+  swap_entry_position(env, tuid, uuid)
+  reply_json(env, {movenext: "ok"})
+end
+
+post "/moveafter.json" do |env|
+  before_this env
+
+  tuid = get_entry_id(env, env.params["tid"] as String) as String
+  uuid = get_entry_id(env, env.params["id"] as String) as String
+  move_after_position(env, tuid, uuid)
+  reply_json(env, {moveafter: "ok"})
+end
+
 post "/entries.json" do |env|
   before_this env
 
@@ -317,7 +375,7 @@ post "/entries.json" do |env|
   reply = [] of Hash(Symbol, String | Bool)
 
   get_level_entries_deferred_release(env, pid, use_parent).not_nil!.each do |entry|
-    reply << {id: entry[0].to_s, name: entry[1] as String, isParent: entry[3] as Int32 > 0, task:(entry[4] == true ? true : false), checked:(entry[5] == true ? true : false)}
+    reply << {id: entry[0].to_s, name: entry[1] as String, isParent: entry[3] as Int32 > 0, drag: true, drop: true, task:(entry[4] == true ? true : false), checked:(entry[5] == true ? true : false)}
   end
   release
 

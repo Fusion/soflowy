@@ -10,13 +10,13 @@ var setting = {
   view: {expandSpeed:"",
     addHoverDom: addHoverDom,
     removeHoverDom: removeHoverDom,
-                addDiyDom: addDiyDom,
+    addDiyDom: addDiyDom,
     selectedMulti: false
   },
   edit: {
     enable: true,
-                renameTitle: "Edit note",
-                removeTitle: "Delete note"
+    renameTitle: "Edit note",
+    removeTitle: "Delete note"
   },
   data: {
     simpleData: {
@@ -27,20 +27,28 @@ var setting = {
     beforeRemove: beforeRemove,
     beforeRename: beforeRename,
     onRename: onRename,
-    onRemove: onRemove
+    onRemove: onRemove,
+    beforeDrag: beforeDrag,
+    beforeDrop: beforeDrop
   }
 };
+
+function configureTree(zTree) {
+  zTree.setting.edit.drag.isCopy = false;
+  zTree.setting.edit.drag.isMove = true;
+  zTree.setting.edit.drag.prev = true;
+  zTree.setting.edit.drag.inner = true;
+  zTree.setting.edit.drag.next = true;
+}
 
 var treeHistory = [];
 
 function addLayer() {
-console.log("+layer");
   var layer = '<div class="treelayer"><div class="zTreeContainerBackground left"><div id="backintree"><span class="icon icon-up-circled"></span></div><ul id="'+getTreeName()+'" class="ztree"></ul></div></div>';
   $('#content_wrap_container').append(layer);
 }
 
 function removeLayer() {
-console.log("-layer");
   $("#" + getTreeName()).parent().parent().remove();
 }
 
@@ -121,6 +129,45 @@ function addRemoteNode(treeNode) {
   });
 }
 
+function movePrevRemoteNode(targetNode, treeNode) {
+  $.ajax({
+    type: "POST",
+    url: "/moveprev.json",
+    data: { tid: targetNode.id, id: treeNode.id },
+
+    success: function( data ) {
+      var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+      zTree.moveNode(targetNode, treeNode, "prev", false);
+    }
+  });
+}
+
+function moveNextRemoteNode(targetNode, treeNode) {
+  $.ajax({
+    type: "POST",
+    url: "/movenext.json",
+    data: { tid: targetNode.id, id: treeNode.id },
+
+    success: function( data ) {
+      var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+      zTree.moveNode(targetNode, treeNode, "next", false);
+    }
+  });
+}
+
+function moveAfterRemoteNode(targetNode, treeNode) {
+  $.ajax({
+    type: "POST",
+    url: "/moveafter.json",
+    data: { tid: targetNode.id, id: treeNode.id },
+
+    success: function( data ) {
+      var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+      zTree.moveNode(targetNode, treeNode, "next", false);
+    }
+  });
+}
+
 function checkTask(treeNode, ischecked) {
   $.ajax({
     type: "POST",
@@ -142,6 +189,13 @@ function makeTask(treeNode, istask) {
       addDiyDom(zTree.setting.treeId, treeNode);
     }
   });
+}
+
+function beforeDrag(treeId, treeNodes) {
+  return false; // for now, until I resolve visual issues
+}
+function beforeDrop(treeId, treeNodes, targetNode, moveType) {
+  return true;
 }
 
 /* DEAD CODE */
@@ -217,8 +271,7 @@ function addDiyDom(treeId, treeNode) {
 /* */
 
 function renderContent(str) {
-  //return marked(str).replace(/(\+[a-zA-z-_0-9]*)/g, '<span class="tag" style="background-color:#82caff">$1</span>');
-  return str.replace(/(\+[a-zA-z-_0-9]*)/g, '<span class="tag" style="background-color:#82caff">$1</span>');
+  return marked(str).replace(/<\/{0,1}p>/g, '').replace(/(\+[a-zA-z-_0-9]*)/g, '<span class="tag" style="background-color:#82caff">$1</span>');
 }
 
 /* */
@@ -309,6 +362,16 @@ function onKeyDown() {
   }
 }
 
+function onShiftKeyDown() {
+  var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+  var nodes = zTree.getSelectedNodes();
+  if(nodes.length > 0) {
+    if(nodes[0].getNextNode()) {
+      moveNextRemoteNode(nodes[0].getNextNode(), nodes[0]);
+    }
+  }
+}
+
 /* This is where is get fun:
  * we want to recursively find the
  * last grandchild from our predecessor's lineage
@@ -336,6 +399,16 @@ function onKeyUp() {
   }
 }
 
+function onShiftKeyUp() {
+  var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+  var nodes = zTree.getSelectedNodes();
+  if(nodes.length > 0) {
+    if(nodes[0].getPreNode()) {
+      movePrevRemoteNode(nodes[0].getPreNode(), nodes[0]);
+    }
+  }
+}
+
 function onKeyRight() {
   var zTree = $.fn.zTree.getZTreeObj(getTreeName());
   var nodes = zTree.getSelectedNodes();
@@ -352,6 +425,26 @@ function onKeyLeft() {
   if(nodes.length > 0) {
     if(nodes[0].isParent && nodes[0].open == true) {
       zTree.expandNode(nodes[0], false);
+    }
+  }
+}
+
+function onKeyTab() {
+  var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+  var nodes = zTree.getSelectedNodes();
+  if(nodes.length > 0) {
+    if(nodes[0].getPreNode()) {
+      //moveAfterRemoteNode(nodes[0].getPreNode(), nodes[0]);
+    }
+  }
+}
+
+function onShiftKeyTab() {
+  var zTree = $.fn.zTree.getZTreeObj(getTreeName());
+  var nodes = zTree.getSelectedNodes();
+  if(nodes.length > 0) {
+    if(nodes[0].getParentNode()) {
+      moveAfterRemoteNode(nodes[0].getParentNode(), nodes[0]);
     }
   }
 }
@@ -386,12 +479,20 @@ $(document).ready(function(){
   bindings.registerHandler(onKeyDel);
   bindings.add('onKeyDown', new Keys.Combo(Keys.Key.Down));
   bindings.registerHandler(onKeyDown);
+  bindings.add('onShiftKeyDown', new Keys.Combo(Keys.Key.Down, Keys.Key.SHIFT));
+  bindings.registerHandler(onShiftKeyDown);
   bindings.add('onKeyUp', new Keys.Combo(Keys.Key.Up));
   bindings.registerHandler(onKeyUp);
+  bindings.add('onShiftKeyUp', new Keys.Combo(Keys.Key.Up, Keys.Key.SHIFT));
+  bindings.registerHandler(onShiftKeyUp);
   bindings.add('onKeyRight', new Keys.Combo(Keys.Key.Right));
   bindings.registerHandler(onKeyRight);
   bindings.add('onKeyLeft', new Keys.Combo(Keys.Key.Left));
   bindings.registerHandler(onKeyLeft);
+  bindings.add('onKeyTab', new Keys.Combo(Keys.Key.Tab));
+  bindings.registerHandler(onKeyTab);
+  bindings.add('onShiftKeyTab', new Keys.Combo(Keys.Key.Tab, Keys.Key.SHIFT));
+  bindings.registerHandler(onShiftKeyTab);
   bindings.add('onKeyShiftEnter', new Keys.Combo(Keys.Key.Enter, Keys.Key.SHIFT));
   bindings.registerHandler(onKeyShiftEnter);
   bindings.add('onKeySpace', new Keys.Combo(Keys.Key.Spacebar));
@@ -400,6 +501,7 @@ $(document).ready(function(){
   bindings.registerHandler(onKeyShiftSpace);
 
   $.fn.zTree.init($("#"+getTreeName()), setting);
+  configureTree($.fn.zTree.getZTreeObj(getTreeName()));
         /*
          * If back arrow clicked, then pop tree history
          */
