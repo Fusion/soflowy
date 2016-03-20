@@ -13,6 +13,11 @@ CONN_OPTS = {
   "db" => "fy"
 }
 
+# TODO
+# If a node loses all its children, it should not be marked
+# as a parent anymore.
+#
+
 mysql_connect CONN_OPTS
 
 add_handler Session::Handler(Hash(String, String)).new(secret: "besecret")
@@ -25,128 +30,130 @@ class String
   end
 end
 
-
-def body_param(env, name)
-  URI.unescape(env.params.body[name] as String, true)
+macro query(template, params={} of Symbol => MySQL::Types::SqlType)
+  MySQL::Query.new({{template}}, {{params}}).run(conn)
 end
 
-def reply_json(env, data, diag = 200)
+macro body_param(name)
+  URI.unescape(env.params.body[{{name}}] as String, true)
+end
+
+macro reply_json(data, diag = 200)
   env.response.content_type = "application/json"
-  env.response.status_code = diag
-  data.to_json
+  env.response.status_code = {{diag}}
+  {{data}}.to_json
 end
 
 # top level: parent == ""
 def get_level_entries_deferred_release(env, parent_id, use_parent)
-  r = conn.query(%(SELECT id FROM maps WHERE nid='#{parent_id}'))
+  r = query(%{SELECT id FROM maps WHERE nid=:parent_id}, {"parent_id" => parent_id})
   if r.not_nil!.size == 1
-    s_parent = (r.not_nil![0][0] as String).sanitize
+    s_parent = r.not_nil![0][0] as String
   else
     s_parent = ""
   end
   release
   if use_parent
-    conn.query(%(SELECT nid, content, sortorder, children, task, checked FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE parent="#{s_parent}" ORDER BY sortorder))
+    query(%{SELECT nid, content, sortorder, children, task, checked FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE parent=:parent ORDER BY sortorder},
+        {"parent" => s_parent})
   else
-    conn.query(%(SELECT nid, content, sortorder, children, task, checked FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE entries.id="#{s_parent}" ORDER BY sortorder))
+    query(%{SELECT nid, content, sortorder, children, task, checked FROM entries LEFT JOIN maps ON entries.id=maps.id WHERE entries.id=:parent ORDER BY sortorder},
+        {"parent" => s_parent})
   end
 end
 
 def get_entry_id(env, nid)
-  s_nid = nid.sanitize
-  return "" if s_nid == "0"
-  r = conn.query(%(SELECT id FROM maps WHERE nid='#{s_nid}')).not_nil![0][0]
+  return "" if nid == "0"
+  r = query(%{SELECT id FROM maps WHERE nid=:nid}, {"nid" => nid}).not_nil![0][0]
   release
   r
 end
 
 def get_entry_id_and_child_idx(env, nid : String)
-  s_nid = nid.sanitize
-  if s_nid == "0"
-    r = conn.query(%(SELECT '',MAX(sortorder) AS max_sort FROM entries WHERE parent='')).not_nil![0]
+  if nid == "0"
+    r = query(%{SELECT '',MAX(sortorder) AS max_sort FROM entries WHERE parent=''}).not_nil![0]
   else
-    r = conn.query(%(SELECT maps.id,MAX(sortorder) AS max_sort FROM maps LEFT JOIN entries ON maps.id=entries.parent WHERE nid='#{s_nid}')).not_nil![0]
+    r = query(%{SELECT maps.id,MAX(sortorder) AS max_sort FROM maps LEFT JOIN entries ON maps.id=entries.parent WHERE nid=:nid},
+        {"nid" => nid}).not_nil![0]
   end
   release
   r
 end
 
 def get_entry_nid(env, id : String)
-  s_id = id.sanitize
-  r = conn.query(%(SELECT nid FROM maps WHERE id='#{s_id}')).not_nil![0][0]
+  r = query(%{SELECT nid FROM maps WHERE id=:id}, {"id" => id}).not_nil![0][0]
   release
   r
 end
 
 def insert_entry(env, parent : Nil | String, content : String, sortorder : Int32)
   uuid = SecureRandom.uuid
-  s_parent = parent == nil ? nil : parent.not_nil!.sanitize
-  s_content = content.sanitize
-  conn.query(%(INSERT INTO entries(id, parent, content, sortorder) VALUES("#{uuid}", "#{s_parent}", "#{s_content}", #{sortorder})))
+  query(%{INSERT INTO entries(id, parent, content, sortorder) VALUES(:id, :parent, :content, :sortorder)},
+    {"id" => uuid, "parent" => parent, "content" => content, "sortorder" => sortorder})
   release
-  conn.query(%(INSERT INTO maps(id) VALUES("#{uuid}")))
+  query(%{INSERT INTO maps(id) VALUES(:uuid)}, {"uuid" => uuid})
   release
   if parent != nil
-    conn.query(%(UPDATE entries SET children = children + 1 WHERE id = "#{s_parent}"))
+    query(%{UPDATE entries SET children = children + 1 WHERE id = :parent}, {"parent" => parent})
     release
   end
   uuid
 end
 
 def update_entry_checkedness(env, id : String, check : String)
-  s_id = id.sanitize
   checkedness = check == "true" ? 1 : 0
-  conn.query(%(UPDATE entries SET checked=#{checkedness} WHERE id="#{s_id}"))
+  query(%{UPDATE entries SET checked=:checkedness WHERE id=:id}, {"checkedness" => checkedness, "id" => id})
   release
 end
 
 def update_entry_taskness(env, id : String, task : String)
-  s_id = id.sanitize
   taskness = task == "true" ? 1 : 0
-  conn.query(%(UPDATE entries SET task=#{taskness} WHERE id="#{s_id}"))
+  query(%{UPDATE entries SET task=:taskness WHERE id=:id}, {"taskness" => taskness, "id" => id})
   release
 end
 
 def update_entry_content(env, id : String, content : String)
-  s_id = id.sanitize
-  conn.query(%(UPDATE entries SET content="#{content}" WHERE id="#{s_id}"))
+  query(%{UPDATE entries SET content=:content WHERE id=:id}, {"content" => content, "id" => id})
   release
 end
 
 def delete_entry_by_id(env, id : String)
-  s_id = id.sanitize
-  conn.query(%(DELETE FROM entries WHERE id="#{s_id}"))
+  query(%{DELETE FROM entries WHERE id=:id}, {"id" => id})
   release
-  conn.query(%(DELETE FROM maps WHERE id="#{s_id}"))
+  query(%{DELETE FROM maps WHERE id=:id}, {"id" => id})
   release
 end
 
 def swap_entry_position(env, tid : String, id : String)
-  s_tid = tid.sanitize
-  s_id  = id.sanitize
-  positions = conn.query(%(SELECT sortorder FROM entries WHERE id IN ("#{s_id}", "#{s_tid}") ORDER BY sortorder)).not_nil!
+  positions = query(%{SELECT sortorder FROM entries WHERE id IN (:id, :tid) ORDER BY sortorder},
+    {"id" => id, "tid" => tid}).not_nil!
   release
-  conn.query(%(UPDATE entries SET sortorder=#{positions[1][0]} WHERE id="#{s_id}"))
+  query(%{UPDATE entries SET sortorder=:position WHERE id=:id},
+    {"position" => positions[1][0], "id" => id})
   release
-  conn.query(%(UPDATE entries SET sortorder=#{positions[0][0]} WHERE id="#{s_tid}"))
+  query(%{UPDATE entries SET sortorder=:position WHERE id=:id},
+    {"position" => positions[0][0], "id" => tid})
   release
 end
 
 def move_after_position(env, tid : String, id : String)
-  s_tid = tid.sanitize
-  s_id  = id.sanitize
   # We now need to proceed with two sets of updates:
   # 1. insert node after parent; increment remaining siblings
   # 2. parent's children after our original position: decrement siblings
-  parent_position, grandad = conn.query(%(SELECT sortorder, parent FROM entries WHERE id="#{s_tid}")).not_nil![0]
+  parent_position, grandad = query(%{SELECT sortorder, parent FROM entries WHERE id=:id},
+    {"id" => tid}).not_nil![0]
   release
-  node_position  = conn.query(%(SELECT sortorder FROM entries WHERE id="#{s_id}")).not_nil![0][0]
+  node_position  = query(%{SELECT sortorder FROM entries WHERE id=:id},
+    {"id" => id}).not_nil![0][0]
   release
-  conn.query(%(UPDATE entries SET sortorder=sortorder+1 WHERE parent="#{grandad}" AND sortorder > #{parent_position}))
+  query(%{UPDATE entries SET sortorder=sortorder+1 WHERE parent=:parent AND sortorder > :position},
+    {"parent" => grandad, "position" => parent_position})
   release
-  conn.query(%(UPDATE entries SET sortorder=sortorder-1 WHERE parent="#{s_tid}" AND sortorder > #{node_position}))
+  query(%{UPDATE entries SET sortorder=sortorder-1 WHERE parent=:id AND sortorder > :position},
+    {"id" => tid, "position" => node_position})
   release
-  conn.query(%(UPDATE entries SET sortorder=#{parent_position}+1, parent="#{grandad}" WHERE id="#{s_id}"))
+  query(%{UPDATE entries SET sortorder=:position+1, parent=:parent WHERE id=:id},
+    {"position" => parent_position, "parent" => grandad, "id" => id})
   release
   puts "#{id} -> #{tid} -> #{grandad}"
   puts "#{node_position} -> #{parent_position}"
@@ -181,8 +188,8 @@ def log_out(env)
 end
 
 def get_user_by_name(env, username : String)
-  s_username = username.sanitize
-  r = conn.query(%(SELECT username, password, salt, admin FROM users WHERE username="#{s_username}")).not_nil!
+  r = query(%{SELECT username, password, salt, admin FROM users WHERE username=:username},
+    {"username" => username}).not_nil!
   release
   r.size > 0 ? r[0] : nil
 end
@@ -192,7 +199,8 @@ def create_user(env, username : String, password : String)
   s_password = password.sanitize
   salt = SecureRandom.uuid.sanitize
   enc_password = to_sha1_str(s_password, salt)
-  conn.query(%(INSERT INTO users(username, password, salt) VALUES("#{s_username}", "#{enc_password}", "#{salt}")))
+  query(%{INSERT INTO users(username, password, salt) VALUES(:username, :password, :salt)},
+    {"username" => username, "password" => enc_password, "salt" => salt})
   release
   log_in(env, s_username, false)
 end
@@ -273,15 +281,15 @@ end
 post "/login" do |env|
   before_this env
 
-  if body_param(env, "username") == "" || body_param(env, "password") == ""
+  if body_param("username") == "" || body_param("password") == ""
     render "src/views/login.ecr"
   else
-    user = get_user_by_name(env, body_param(env, "username"))
+    user = get_user_by_name(env, body_param("username"))
     if user == nil
-      create_user(env, body_param(env, "username"), body_param(env, "password"))
+      create_user(env, body_param("username"), body_param("password"))
       env.redirect "/"
     else
-      if attempt_log_in(env, body_param(env, "password"), user.not_nil!)
+      if attempt_log_in(env, body_param("password"), user.not_nil!)
         env.redirect "/"
       else
         render "src/views/login.ecr"
@@ -298,79 +306,79 @@ end
 post "/checktask.json" do |env|
   before_this env
 
-  id = get_entry_id(env, body_param(env, "id"))
-  update_entry_checkedness(env, id as String, body_param(env, "checked"))
+  id = get_entry_id(env, body_param("id"))
+  update_entry_checkedness(env, id as String, body_param("checked"))
 end
 
 post "/maketask.json" do |env|
   before_this env
 
-  id = get_entry_id(env, body_param(env, "id"))
-  update_entry_taskness(env, id as String, body_param(env, "task"))
+  id = get_entry_id(env, body_param("id"))
+  update_entry_taskness(env, id as String, body_param("task"))
 end
 
 post "/rename.json" do |env|
   before_this env
 
-  id = get_entry_id(env, body_param(env, "id"))
-  update_entry_content(env, id as String, URI.unescape(body_param(env, "content")))
+  id = get_entry_id(env, body_param("id"))
+  update_entry_content(env, id as String, URI.unescape(body_param("content")))
 end
 
 post "/remove.json" do |env|
   before_this env
 
-  id = get_entry_id(env, body_param(env, "id"))
+  id = get_entry_id(env, body_param("id"))
   delete_entry_by_id(env, id as String)
 end
 
 post "/add.json" do |env|
   before_this env
 
-  pid = env.params.body.has_key?("pid") ? body_param(env, "pid") : "0"
+  pid = env.params.body.has_key?("pid") ? body_param("pid") : "0"
   uuid, child_idx = get_entry_id_and_child_idx(env, pid as String)
   child_idx = 0 if child_idx == nil
   # when adding a child, it is added at the bottom of its
   # parent's children list, so we need to retrieve that
   # and use it.
-  uuid = insert_entry(env, uuid as String, body_param(env, "content"), child_idx.not_nil!.to_s.to_i + 1)
+  uuid = insert_entry(env, uuid as String, body_param("content"), child_idx.not_nil!.to_s.to_i + 1)
   nid = get_entry_nid(env, uuid)
-  reply_json(env, {add: "ok", id: nid.to_s})
+  reply_json({add: "ok", id: nid.to_s})
 end
 
 post "/moveprev.json" do |env|
   before_this env
 
-  tuid = get_entry_id(env, body_param(env, "tid")) as String
-  uuid = get_entry_id(env, body_param(env, "id")) as String
+  tuid = get_entry_id(env, body_param("tid")) as String
+  uuid = get_entry_id(env, body_param("id")) as String
   swap_entry_position(env, uuid, tuid)
-  reply_json(env, {moveprev: "ok"})
+  reply_json({moveprev: "ok"})
 end
 
 post "/movenext.json" do |env|
   before_this env
 
-  tuid = get_entry_id(env, body_param(env, "tid")) as String
-  uuid = get_entry_id(env, body_param(env, "id")) as String
+  tuid = get_entry_id(env, body_param("tid")) as String
+  uuid = get_entry_id(env, body_param("id")) as String
   swap_entry_position(env, tuid, uuid)
-  reply_json(env, {movenext: "ok"})
+  reply_json({movenext: "ok"})
 end
 
 post "/moveafter.json" do |env|
   before_this env
 
-  tuid = get_entry_id(env, body_param(env, "tid")) as String
-  uuid = get_entry_id(env, body_param(env, "id")) as String
+  tuid = get_entry_id(env, body_param("tid")) as String
+  uuid = get_entry_id(env, body_param("id")) as String
   move_after_position(env, tuid, uuid)
-  reply_json(env, {moveafter: "ok"})
+  reply_json({moveafter: "ok"})
 end
 
 post "/entries.json" do |env|
   before_this env
 
   # If we have an empty document so far
-  ppid = env.params.body.has_key?("id")  ? body_param(env, "id").not_nil!.to_s.to_i : 0
-  if env.params.body.has_key?("queryContext") && body_param(env, "queryContext") != "0" && ppid == 0
-    pid = body_param(env, "queryContext")
+  ppid = env.params.body.has_key?("id")  ? body_param("id").not_nil!.to_s.to_i : 0
+  if env.params.body.has_key?("queryContext") && body_param("queryContext") != "0" && ppid == 0
+    pid = body_param("queryContext")
     use_parent = false
   else
     pid = ppid
@@ -383,7 +391,7 @@ post "/entries.json" do |env|
   end
   release
 
-  reply_json(env, reply)
+  reply_json(reply)
 end
 
 # For initialization when empty:
