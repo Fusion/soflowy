@@ -2,6 +2,7 @@ require "kemal"
 require "kemal-mysql"
 require "session"
 require "base64"
+require "uri"
 require "json"
 require "secure_random"
 
@@ -24,6 +25,10 @@ class String
   end
 end
 
+
+def body_param(env, name)
+  URI.unescape(env.params.body[name] as String, true)
+end
 
 def reply_json(env, data, diag = 200)
   env.response.content_type = "application/json"
@@ -268,15 +273,15 @@ end
 post "/login" do |env|
   before_this env
 
-  if env.params["username"] == "" || env.params["password"] == ""
+  if body_param(env, "username") == "" || body_param(env, "password") == ""
     render "src/views/login.ecr"
   else
-    user = get_user_by_name(env, env.params["username"] as String) 
+    user = get_user_by_name(env, body_param(env, "username"))
     if user == nil
-      create_user(env, env.params["username"] as String, env.params["password"] as String)
+      create_user(env, body_param(env, "username"), body_param(env, "password"))
       env.redirect "/"
     else
-      if attempt_log_in(env, env.params["password"], user.not_nil!)
+      if attempt_log_in(env, body_param(env, "password"), user.not_nil!)
         env.redirect "/"
       else
         render "src/views/login.ecr"
@@ -293,41 +298,41 @@ end
 post "/checktask.json" do |env|
   before_this env
 
-  id = get_entry_id(env, env.params["id"] as String)
-  update_entry_checkedness(env, id as String, env.params["checked"] as String)
+  id = get_entry_id(env, body_param(env, "id"))
+  update_entry_checkedness(env, id as String, body_param(env, "checked"))
 end
 
 post "/maketask.json" do |env|
   before_this env
 
-  id = get_entry_id(env, env.params["id"] as String)
-  update_entry_taskness(env, id as String, env.params["task"] as String)
+  id = get_entry_id(env, body_param(env, "id"))
+  update_entry_taskness(env, id as String, body_param(env, "task"))
 end
 
 post "/rename.json" do |env|
   before_this env
 
-  id = get_entry_id(env, env.params["id"] as String)
-  update_entry_content(env, id as String, env.params["content"] as String)
+  id = get_entry_id(env, body_param(env, "id"))
+  update_entry_content(env, id as String, URI.unescape(body_param(env, "content")))
 end
 
 post "/remove.json" do |env|
   before_this env
 
-  id = get_entry_id(env, env.params["id"] as String)
+  id = get_entry_id(env, body_param(env, "id"))
   delete_entry_by_id(env, id as String)
 end
 
 post "/add.json" do |env|
   before_this env
 
-  pid = env.params.has_key?("pid") ? env.params["pid"] : "0"
+  pid = env.params.body.has_key?("pid") ? body_param(env, "pid") : "0"
   uuid, child_idx = get_entry_id_and_child_idx(env, pid as String)
   child_idx = 0 if child_idx == nil
   # when adding a child, it is added at the bottom of its
   # parent's children list, so we need to retrieve that
   # and use it.
-  uuid = insert_entry(env, uuid as String, env.params["content"] as String, child_idx.not_nil!.to_s.to_i + 1)
+  uuid = insert_entry(env, uuid as String, body_param(env, "content"), child_idx.not_nil!.to_s.to_i + 1)
   nid = get_entry_nid(env, uuid)
   reply_json(env, {add: "ok", id: nid.to_s})
 end
@@ -335,8 +340,8 @@ end
 post "/moveprev.json" do |env|
   before_this env
 
-  tuid = get_entry_id(env, env.params["tid"] as String) as String
-  uuid = get_entry_id(env, env.params["id"] as String) as String
+  tuid = get_entry_id(env, body_param(env, "tid")) as String
+  uuid = get_entry_id(env, body_param(env, "id")) as String
   swap_entry_position(env, uuid, tuid)
   reply_json(env, {moveprev: "ok"})
 end
@@ -344,8 +349,8 @@ end
 post "/movenext.json" do |env|
   before_this env
 
-  tuid = get_entry_id(env, env.params["tid"] as String) as String
-  uuid = get_entry_id(env, env.params["id"] as String) as String
+  tuid = get_entry_id(env, body_param(env, "tid")) as String
+  uuid = get_entry_id(env, body_param(env, "id")) as String
   swap_entry_position(env, tuid, uuid)
   reply_json(env, {movenext: "ok"})
 end
@@ -353,8 +358,8 @@ end
 post "/moveafter.json" do |env|
   before_this env
 
-  tuid = get_entry_id(env, env.params["tid"] as String) as String
-  uuid = get_entry_id(env, env.params["id"] as String) as String
+  tuid = get_entry_id(env, body_param(env, "tid")) as String
+  uuid = get_entry_id(env, body_param(env, "id")) as String
   move_after_position(env, tuid, uuid)
   reply_json(env, {moveafter: "ok"})
 end
@@ -363,10 +368,9 @@ post "/entries.json" do |env|
   before_this env
 
   # If we have an empty document so far
-  
-  ppid = env.params.has_key?("id")  ? env.params["id"].not_nil!.to_s.to_i : 0
-  if env.params["queryContext"] != "0" && ppid == 0
-    pid = env.params["queryContext"]
+  ppid = env.params.body.has_key?("id")  ? body_param(env, "id").not_nil!.to_s.to_i : 0
+  if env.params.body.has_key?("queryContext") && body_param(env, "queryContext") != "0" && ppid == 0
+    pid = body_param(env, "queryContext")
     use_parent = false
   else
     pid = ppid
@@ -375,7 +379,7 @@ post "/entries.json" do |env|
   reply = [] of Hash(Symbol, String | Bool)
 
   get_level_entries_deferred_release(env, pid, use_parent).not_nil!.each do |entry|
-    reply << {id: entry[0].to_s, name: entry[1] as String, isParent: entry[3] as Int32 > 0, drag: true, drop: true, task:(entry[4] == true ? true : false), checked:(entry[5] == true ? true : false)}
+    reply << {id: entry[0].to_s, name: String.new(entry[1] as Slice(UInt8)), isParent: entry[3] as Int32 > 0, drag: true, drop: true, task:(entry[4] == true ? true : false), checked:(entry[5] == true ? true : false)}
   end
   release
 
@@ -392,3 +396,5 @@ get "/reset" do |env|
     "Good try, buddy."
   end
 end
+
+Kemal.run

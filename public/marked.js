@@ -771,7 +771,7 @@ Renderer.prototype.code = function(code, lang, escaped) {
   }
 
   if (!lang) {
-    return '<pre><code>'
+    return '<pre class="cfrinline"><code class="cfrinline">'
       + (escaped ? code : escape(code, true))
       + '\n</code></pre>';
   }
@@ -795,6 +795,7 @@ Renderer.prototype.html = function(html) {
 Renderer.prototype.heading = function(text, level, raw) {
   return '<h'
     + level
+    + ' class="cfrinline"'
     + ' id="'
     + this.options.headerPrefix
     + raw.toLowerCase().replace(/[^\w]+/g, '-')
@@ -806,7 +807,7 @@ Renderer.prototype.heading = function(text, level, raw) {
 };
 
 Renderer.prototype.hr = function() {
-  return this.options.xhtml ? '<hr/>\n' : '<hr>\n';
+  return this.options.xhtml ? '<hr class="cfrinline"/>\n' : '<hr class="cfrinline" style="width:100%">\n';
 };
 
 Renderer.prototype.list = function(body, ordered) {
